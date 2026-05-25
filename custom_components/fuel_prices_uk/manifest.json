@@ -1,0 +1,12 @@
+{
+    "domain": "fuel_prices_uk",
+    "name": "Fuel Prices UK",
+    "codeowners": ["@dharv79"],
+    "config_flow": true,
+    "dependencies": [],
+    "documentation": "https://github.com/dharv79/fuelpricesuk",
+    "iot_class": "cloud_polling",
+    "issue_tracker": "https://github.com/dharv79/fuelpricesuk/issues",
+    "requirements": [],
+    "version": "2026.05.25"
+}

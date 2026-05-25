@@ -1,0 +1,72 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Fuel Finder API Credentials",
+        "description": "Enter your API credentials from [developer.fuel-finder.service.gov.uk](https://www.developer.fuel-finder.service.gov.uk).",
+        "data": {
+          "client_id": "Client ID",
+          "client_secret": "Client Secret"
+        }
+      },
+      "location": {
+        "title": "Search Location",
+        "description": "Choose how to set your location. For **Postcode / Address**, enter a UK postcode (e.g. `SW1A 1AA`) or a town name (e.g. `Manchester`).",
+        "data": {
+          "location_method": "Location Method",
+          "address": "Postcode or Town / Address",
+          "latitude": "Latitude",
+          "longitude": "Longitude"
+        }
+      },
+      "options": {
+        "title": "Search Options",
+        "description": "Configure the search radius, fuel types, and refresh interval.",
+        "data": {
+          "radius_miles": "Search Radius (miles)",
+          "fuel_e10": "E10 — Petrol (standard unleaded)",
+          "fuel_e5": "E5 — Super Unleaded",
+          "fuel_b7": "B7 — Diesel",
+          "fuel_sdv": "SDV — Super Diesel",
+          "cheapest_count": "Number of cheapest-price sensors per fuel type",
+          "nearest_count": "Number of nearest-station sensors per fuel type (0 = disabled)",
+          "update_interval": "Update interval (seconds, min 300)",
+          "max_data_age_days": "Ignore price data older than N days (0 = show all)"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Invalid credentials — check your Client ID and Client Secret.",
+      "cannot_connect": "Cannot connect to the Fuel Finder API.",
+      "home_location_not_set": "Home location is not configured in Home Assistant settings.",
+      "address_required": "Please enter a UK postcode or town name.",
+      "geocode_failed": "Could not find that location. Try a full UK postcode (e.g. SW1A 1AA).",
+      "invalid_coordinates": "Invalid coordinates.",
+      "no_fuel_types": "Select at least one fuel type."
+    },
+    "abort": {
+      "already_configured": "This location is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Update Options",
+        "data": {
+          "radius_miles": "Search Radius (miles)",
+          "fuel_e10": "E10 — Petrol",
+          "fuel_e5": "E5 — Super Unleaded",
+          "fuel_b7": "B7 — Diesel",
+          "fuel_sdv": "SDV — Super Diesel",
+          "cheapest_count": "Cheapest-price sensors per fuel type",
+          "nearest_count": "Nearest-station sensors per fuel type",
+          "update_interval": "Update interval (seconds)",
+          "max_data_age_days": "Max data age (days)"
+        }
+      }
+    },
+    "error": {
+      "no_fuel_types": "Select at least one fuel type."
+    }
+  }
+}
