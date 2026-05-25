@@ -94,22 +94,27 @@ async def fetch_stations_by_criteria(
 
     # Build price lookup: site_id → {canonical_fuel_type → {price, last_updated}}
     price_map: dict[str, dict[str, Any]] = {}
+    skipped_no_sid = skipped_no_ft = skipped_no_price = 0
     for rec in prices_raw:
         sid = _str_field(rec, "site_id", "siteId", "id")
         if not sid:
+            skipped_no_sid += 1
             continue
         raw_ft = _str_field(rec, "fuel_type", "fuelType", "type")
         ft = _normalise_fuel_type(raw_ft) if raw_ft else ""
         if not ft:
+            skipped_no_ft += 1
             continue
         raw_price = rec.get("price") or rec.get("price_in_pence")
         if raw_price is None:
+            skipped_no_price += 1
             continue
         try:
             price = float(raw_price)
             if price > _PENCE_THRESHOLD:
                 price /= 100.0
         except (TypeError, ValueError):
+            skipped_no_price += 1
             continue
         price_map.setdefault(sid, {})[ft] = {
             "price": round(price, 3),
@@ -118,12 +123,37 @@ async def fetch_stations_by_criteria(
             or rec.get("updated_at"),
         }
 
+    _LOGGER.info(
+        "Fuel Prices UK: price map built — %d stations with prices, %d price records skipped "
+        "(no_sid=%d, no_fuel_type=%d, no_price=%d)",
+        len(price_map), skipped_no_sid + skipped_no_ft + skipped_no_price,
+        skipped_no_sid, skipped_no_ft, skipped_no_price,
+    )
+    if price_map:
+        sample_sid = next(iter(price_map))
+        _LOGGER.info("Fuel Prices UK: price map sample — site_id=%r fuels=%s", sample_sid, list(price_map[sample_sid].keys()))
+    if prices_raw and not price_map:
+        _LOGGER.warning(
+            "Fuel Prices UK: price map is EMPTY despite %d raw price records — "
+            "first record keys: %s, first record: %s",
+            len(prices_raw), list(prices_raw[0].keys()), str(prices_raw[0])[:300],
+        )
+
+    if stations_raw:
+        sample_station = stations_raw[0]
+        _LOGGER.info(
+            "Fuel Prices UK: station record keys: %s, sample: %s",
+            list(sample_station.keys()), str(sample_station)[:300],
+        )
+
     results: list[dict[str, Any]] = []
     seen: set[str] = set()
+    n_no_sid = n_no_coords = n_outside_radius = n_no_price = 0
 
     for station in stations_raw:
         sid = _str_field(station, "site_id", "siteId", "id")
         if not sid or sid in seen:
+            n_no_sid += 1
             continue
 
         # Filter by site_id
@@ -155,15 +185,18 @@ async def fetch_stations_by_criteria(
         distance_km: float | None = None
         if latitude is not None and longitude is not None:
             if lat == 0.0 and lon == 0.0:
+                n_no_coords += 1
                 continue
             distance_km = _haversine_km(latitude, longitude, lat, lon)
             if distance_km > radius_km:
+                n_outside_radius += 1
                 continue
 
         prices = price_map.get(sid, {})
 
         # Fuel type filter — skip if none of the requested types have a price
         if fuel_types and not any(ft in prices for ft in fuel_types):
+            n_no_price += 1
             continue
 
         results.append(
@@ -180,6 +213,12 @@ async def fetch_stations_by_criteria(
             }
         )
         seen.add(sid)
+
+    _LOGGER.info(
+        "Fuel Prices UK: station filter results — passed=%d, no_sid=%d, no_coords=%d, "
+        "outside_radius=%d, no_matching_price=%d",
+        len(results), n_no_sid, n_no_coords, n_outside_radius, n_no_price,
+    )
 
     _LOGGER.debug("fetch_stations_by_criteria → %d stations after filtering", len(results))
     return results
