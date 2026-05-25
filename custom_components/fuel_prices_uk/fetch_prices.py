@@ -169,7 +169,13 @@ async def fetch_stations_by_criteria(
         sample_station = stations_raw[0]
         _LOGGER.info(
             "Fuel Prices UK: station record keys: %s, sample: %s",
-            list(sample_station.keys()), str(sample_station)[:300],
+            list(sample_station.keys()), str(sample_station)[:400],
+        )
+        # Log price map coverage: what % of stations have a price entry?
+        stations_with_price = sum(1 for s in stations_raw if _str_field(s, "node_id", "site_id", "siteId", "id") in price_map)
+        _LOGGER.info(
+            "Fuel Prices UK: %d of %d station records have a price entry in price map",
+            stations_with_price, len(stations_raw),
         )
 
     results: list[dict[str, Any]] = []
@@ -201,6 +207,7 @@ async def fetch_stations_by_criteria(
             lon = float(
                 station.get("longitude")
                 or station.get("lon")
+                or station.get("lng")
                 or station.get("long")
                 or 0
             )
