@@ -19,55 +19,85 @@ views:
 
       # ── Cheapest E10 Petrol ──────────────────────────────────────────────────
       - type: markdown
-        title: Cheapest E10 Petrol nearby
-        content: >
+        title: Cheapest E10 Petrol — sorted by price
+        content: |
+          {%- set ns = namespace(rows=[]) -%}
+          {%- for i in range(1, 51) -%}
+            {%- set eid = 'sensor.fuel_prices_uk_station_' ~ i -%}
+            {%- if state_attr(eid, 'e10_price') is not none -%}
+              {%- set ns.rows = ns.rows + [{'name': state_attr(eid, 'station_name'), 'brand': state_attr(eid, 'brand'), 'e10': state_attr(eid, 'e10_price'), 'dist': state_attr(eid, 'distance_miles'), 'addr': state_attr(eid, 'address'), 'post': state_attr(eid, 'postcode')}] -%}
+            {%- endif -%}
+          {%- endfor %}
           | # | Station | **£/L** | Distance | Address |
-
-          |---|---------|--------|----------|---------|
-
-          {% for eid in [
-            'sensor.fuel_prices_uk_cheapest_e10_petrol',
-            'sensor.fuel_prices_uk_2nd_cheapest_e10_petrol',
-            'sensor.fuel_prices_uk_3rd_cheapest_e10_petrol'
-          ] %}
-          {%- if not is_state(eid, 'unavailable') and not is_state(eid, 'unknown') %}
-          | {{ state_attr(eid, 'price_rank') }} | {{ state_attr(eid, 'station_name') }} ({{ state_attr(eid, 'brand') }}) | **{{ states(eid) }}** | {{ state_attr(eid, 'distance_miles') }} mi | {{ state_attr(eid, 'address') }}, {{ state_attr(eid, 'postcode') }} |
-          {%- endif %}
+          | --- | --- | --- | --- | --- |
+          {% for s in ns.rows | sort(attribute='e10') -%}
+          | {{ loop.index }} | {{ s.name }} ({{ s.brand }}) | **{{ s.e10 }}** | {{ s.dist }} mi | {{ s.addr }}, {{ s.post }} |
           {% endfor %}
 
       # ── Cheapest B7 Diesel ───────────────────────────────────────────────────
       - type: markdown
-        title: Cheapest B7 Diesel nearby
-        content: >
+        title: Cheapest B7 Diesel — sorted by price
+        content: |
+          {%- set ns = namespace(rows=[]) -%}
+          {%- for i in range(1, 51) -%}
+            {%- set eid = 'sensor.fuel_prices_uk_station_' ~ i -%}
+            {%- if state_attr(eid, 'b7_price') is not none -%}
+              {%- set ns.rows = ns.rows + [{'name': state_attr(eid, 'station_name'), 'brand': state_attr(eid, 'brand'), 'b7': state_attr(eid, 'b7_price'), 'dist': state_attr(eid, 'distance_miles'), 'addr': state_attr(eid, 'address'), 'post': state_attr(eid, 'postcode')}] -%}
+            {%- endif -%}
+          {%- endfor %}
           | # | Station | **£/L** | Distance | Address |
+          | --- | --- | --- | --- | --- |
+          {% for s in ns.rows | sort(attribute='b7') -%}
+          | {{ loop.index }} | {{ s.name }} ({{ s.brand }}) | **{{ s.b7 }}** | {{ s.dist }} mi | {{ s.addr }}, {{ s.post }} |
+          {% endfor %}
 
-          |---|---------|--------|----------|---------|
+      # ── Cheapest E5 Super Unleaded ───────────────────────────────────────────
+      - type: markdown
+        title: Cheapest E5 Super Unleaded — sorted by price
+        content: |
+          {%- set ns = namespace(rows=[]) -%}
+          {%- for i in range(1, 51) -%}
+            {%- set eid = 'sensor.fuel_prices_uk_station_' ~ i -%}
+            {%- if state_attr(eid, 'e5_price') is not none -%}
+              {%- set ns.rows = ns.rows + [{'name': state_attr(eid, 'station_name'), 'brand': state_attr(eid, 'brand'), 'e5': state_attr(eid, 'e5_price'), 'dist': state_attr(eid, 'distance_miles'), 'addr': state_attr(eid, 'address'), 'post': state_attr(eid, 'postcode')}] -%}
+            {%- endif -%}
+          {%- endfor %}
+          | # | Station | **£/L** | Distance | Address |
+          | --- | --- | --- | --- | --- |
+          {% for s in ns.rows | sort(attribute='e5') -%}
+          | {{ loop.index }} | {{ s.name }} ({{ s.brand }}) | **{{ s.e5 }}** | {{ s.dist }} mi | {{ s.addr }}, {{ s.post }} |
+          {% endfor %}
 
-          {% for eid in [
-            'sensor.fuel_prices_uk_cheapest_b7_diesel',
-            'sensor.fuel_prices_uk_2nd_cheapest_b7_diesel',
-            'sensor.fuel_prices_uk_3rd_cheapest_b7_diesel'
-          ] %}
-          {%- if not is_state(eid, 'unavailable') and not is_state(eid, 'unknown') %}
-          | {{ state_attr(eid, 'price_rank') }} | {{ state_attr(eid, 'station_name') }} ({{ state_attr(eid, 'brand') }}) | **{{ states(eid) }}** | {{ state_attr(eid, 'distance_miles') }} mi | {{ state_attr(eid, 'address') }}, {{ state_attr(eid, 'postcode') }} |
-          {%- endif %}
+      # ── Cheapest SDV Super Diesel ────────────────────────────────────────────
+      - type: markdown
+        title: Cheapest SDV Super Diesel — sorted by price
+        content: |
+          {%- set ns = namespace(rows=[]) -%}
+          {%- for i in range(1, 51) -%}
+            {%- set eid = 'sensor.fuel_prices_uk_station_' ~ i -%}
+            {%- if state_attr(eid, 'sdv_price') is not none -%}
+              {%- set ns.rows = ns.rows + [{'name': state_attr(eid, 'station_name'), 'brand': state_attr(eid, 'brand'), 'sdv': state_attr(eid, 'sdv_price'), 'dist': state_attr(eid, 'distance_miles'), 'addr': state_attr(eid, 'address'), 'post': state_attr(eid, 'postcode')}] -%}
+            {%- endif -%}
+          {%- endfor %}
+          | # | Station | **£/L** | Distance | Address |
+          | --- | --- | --- | --- | --- |
+          {% for s in ns.rows | sort(attribute='sdv') -%}
+          | {{ loop.index }} | {{ s.name }} ({{ s.brand }}) | **{{ s.sdv }}** | {{ s.dist }} mi | {{ s.addr }}, {{ s.post }} |
           {% endfor %}
 
       # ── All Nearby Stations — prices at a glance ─────────────────────────────
       # Shows every station sensor in distance order with all fuel prices.
-      # Stations 9+ will be 'unavailable' until you increase the search radius in Options.
+      # Stations beyond your search radius will be 'unavailable' — increase radius in Options if needed.
       - type: markdown
-        title: Nearby Stations — all prices
-        content: >
+        title: Nearby Stations — all prices by distance
+        content: |
           | # | Station | E10 | B7 | E5 | SDV | Distance | Address |
-
-          |---|---------|-----|----|----|-----|----------|---------|
-
-          {% for i in range(1, 51) %}
-          {%- set eid = 'sensor.fuel_prices_uk_station_' ~ i %}
-          {%- if not is_state(eid, 'unavailable') and not is_state(eid, 'unknown') %}
+          | --- | --- | --- | --- | --- | --- | --- | --- |
+          {% for i in range(1, 51) -%}
+          {%- set eid = 'sensor.fuel_prices_uk_station_' ~ i -%}
+          {%- if state_attr(eid, 'station_name') is not none -%}
           | {{ i }} | {{ state_attr(eid, 'station_name') }} ({{ state_attr(eid, 'brand') }}) | {{ state_attr(eid, 'e10_price') or '—' }} | {{ state_attr(eid, 'b7_price') or '—' }} | {{ state_attr(eid, 'e5_price') or '—' }} | {{ state_attr(eid, 'sdv_price') or '—' }} | {{ state_attr(eid, 'distance_miles') }} mi | {{ state_attr(eid, 'address') }}, {{ state_attr(eid, 'postcode') }} |
-          {%- endif %}
+          {% endif -%}
           {% endfor %}
 
       # ── Station locations on map ──────────────────────────────────────────────
