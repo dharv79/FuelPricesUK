@@ -17,13 +17,16 @@ from .const import (
     CONF_FUELTYPES,
     CONF_MAX_DATA_AGE_DAYS,
     CONF_NEAREST_COUNT,
+    CONF_STATION_COUNT,
     DEFAULT_CHEAPEST_COUNT,
     DEFAULT_MAX_DATA_AGE_DAYS,
     DEFAULT_NEAREST_COUNT,
+    DEFAULT_STATION_COUNT,
     DOMAIN,
     FUEL_LABELS,
     FUEL_TYPE_B7,
     FUEL_TYPE_E10,
+    FUEL_TYPES,
     KM_TO_MILES,
 )
 
@@ -56,6 +59,10 @@ async def async_setup_entry(
             entities.append(
                 NearestFuelStationSensor(coordinator, entry, fuel_type, rank, max_age_days)
             )
+
+    station_count: int = config.get(CONF_STATION_COUNT, DEFAULT_STATION_COUNT)
+    for rank in range(1, station_count + 1):
+        entities.append(StationSensor(coordinator, entry, rank, max_age_days))
 
     async_add_entities(entities)
 
@@ -220,4 +227,91 @@ class NearestFuelStationSensor(CheapestFuelPriceSensor):
         if attrs:
             attrs["distance_rank"] = self._rank
             attrs["distance_rank_label"] = f"{_ordinal(self._rank)} nearest"
+        return attrs
+
+
+class StationSensor(CoordinatorEntity, SensorEntity):
+    """Nth nearest station with all available fuel prices as attributes."""
+
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = "mi"
+    _attr_attribution = _ATTRIBUTION
+    _attr_icon = "mdi:gas-station"
+
+    def __init__(
+        self,
+        coordinator: FuelPricesDataUpdateCoordinator,
+        entry: ConfigEntry,
+        rank: int,
+        max_age_days: int,
+    ) -> None:
+        super().__init__(coordinator)
+        self._entry = entry
+        self._rank = rank
+        self._max_age_days = max_age_days
+        self._attr_unique_id = f"{entry.entry_id}_station_{rank:02d}"
+        self._attr_name = f"Fuel Prices UK — Station {rank}"
+
+    def _get_station(self) -> dict[str, Any] | None:
+        if not self.coordinator.data:
+            return None
+        stations = sorted(
+            [s for s in self.coordinator.data if s.get("distance_km") is not None],
+            key=lambda s: (s["distance_km"], s.get("site_id", "")),
+        )
+        idx = self._rank - 1
+        return stations[idx] if idx < len(stations) else None
+
+    @property
+    def native_value(self) -> float | None:
+        s = self._get_station()
+        if s is None:
+            return None
+        d = s.get("distance_km")
+        return round(d * KM_TO_MILES, 3) if d is not None else None
+
+    @property
+    def available(self) -> bool:
+        return self.coordinator.last_update_success and self._get_station() is not None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        s = self._get_station()
+        if not s:
+            return {}
+        dist_km = s.get("distance_km")
+        prices = s.get("prices", {})
+
+        attrs: dict[str, Any] = {
+            "station_name": s.get("name"),
+            "brand": s.get("brand"),
+            "address": s.get("address"),
+            "postcode": s.get("postcode"),
+            "latitude": s.get("latitude"),
+            "longitude": s.get("longitude"),
+            "distance_km": dist_km,
+            "distance_miles": round(dist_km * KM_TO_MILES, 3) if dist_km is not None else None,
+            "distance_rank": self._rank,
+            "site_id": s.get("site_id"),
+        }
+
+        for ft in FUEL_TYPES:
+            key = ft.lower()
+            info = prices.get(ft)
+            attrs[f"{key}_price"] = info["price"] if info else None
+            attrs[f"{key}_last_updated"] = info.get("last_updated") if info else None
+
+        available_prices = {
+            ft: prices[ft]["price"]
+            for ft in prices
+            if prices.get(ft, {}).get("price") is not None
+        }
+        if available_prices:
+            cheapest_ft = min(available_prices, key=available_prices.get)
+            attrs["cheapest_fuel_type"] = cheapest_ft
+            attrs["cheapest_price"] = available_prices[cheapest_ft]
+        else:
+            attrs["cheapest_fuel_type"] = None
+            attrs["cheapest_price"] = None
+
         return attrs

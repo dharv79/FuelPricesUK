@@ -25,11 +25,13 @@ from .const import (
     CONF_MAX_DATA_AGE_DAYS,
     CONF_NEAREST_COUNT,
     CONF_RADIUS,
+    CONF_STATION_COUNT,
     CONF_UPDATE_INTERVAL,
     DEFAULT_CHEAPEST_COUNT,
     DEFAULT_MAX_DATA_AGE_DAYS,
     DEFAULT_NEAREST_COUNT,
     DEFAULT_RADIUS_KM,
+    DEFAULT_STATION_COUNT,
     DEFAULT_UPDATE_INTERVAL,
     DOMAIN,
     FUEL_TYPE_B7,
@@ -43,6 +45,7 @@ from .const import (
     LOCATION_METHOD_HOME,
     MAX_CHEAPEST_COUNT,
     MAX_NEAREST_COUNT,
+    MAX_STATION_COUNT,
     MIN_CHEAPEST_COUNT,
     MILES_TO_KM,
 )
@@ -260,6 +263,9 @@ class FuelPricesUKFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_NEAREST_COUNT: int(
                             user_input.get(CONF_NEAREST_COUNT, DEFAULT_NEAREST_COUNT)
                         ),
+                        CONF_STATION_COUNT: int(
+                            user_input.get(CONF_STATION_COUNT, DEFAULT_STATION_COUNT)
+                        ),
                         CONF_MAX_DATA_AGE_DAYS: int(
                             user_input.get(CONF_MAX_DATA_AGE_DAYS, DEFAULT_MAX_DATA_AGE_DAYS)
                         ),
@@ -318,6 +324,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                         CONF_NEAREST_COUNT: int(
                             user_input.get(CONF_NEAREST_COUNT, DEFAULT_NEAREST_COUNT)
                         ),
+                        CONF_STATION_COUNT: int(
+                            user_input.get(CONF_STATION_COUNT, DEFAULT_STATION_COUNT)
+                        ),
                         CONF_MAX_DATA_AGE_DAYS: int(
                             user_input.get(
                                 CONF_MAX_DATA_AGE_DAYS, DEFAULT_MAX_DATA_AGE_DAYS
@@ -340,6 +349,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 fuels=current_fuels,
                 cheapest=current.get(CONF_CHEAPEST_COUNT, DEFAULT_CHEAPEST_COUNT),
                 nearest=current.get(CONF_NEAREST_COUNT, DEFAULT_NEAREST_COUNT),
+                station_count=current.get(CONF_STATION_COUNT, DEFAULT_STATION_COUNT),
                 interval=current.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL),
                 age_days=current.get(CONF_MAX_DATA_AGE_DAYS, DEFAULT_MAX_DATA_AGE_DAYS),
             ),
@@ -357,6 +367,7 @@ def _options_schema(
     fuels: list[str] | None = None,
     cheapest: int = DEFAULT_CHEAPEST_COUNT,
     nearest: int = DEFAULT_NEAREST_COUNT,
+    station_count: int = DEFAULT_STATION_COUNT,
     interval: int = DEFAULT_UPDATE_INTERVAL,
     age_days: int = DEFAULT_MAX_DATA_AGE_DAYS,
 ) -> vol.Schema:
@@ -384,6 +395,9 @@ def _options_schema(
             ),
             vol.Optional(CONF_NEAREST_COUNT, default=nearest): vol.All(
                 vol.Coerce(int), vol.Range(min=0, max=MAX_NEAREST_COUNT)
+            ),
+            vol.Optional(CONF_STATION_COUNT, default=station_count): vol.All(
+                vol.Coerce(int), vol.Range(min=0, max=MAX_STATION_COUNT)
             ),
             vol.Optional(CONF_UPDATE_INTERVAL, default=interval): vol.All(
                 vol.Coerce(int), vol.Range(min=300, max=86400)
