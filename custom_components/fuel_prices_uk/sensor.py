@@ -242,7 +242,7 @@ class StationSensor(CoordinatorEntity, SensorEntity):
     """Nth nearest station with all available fuel prices as attributes."""
 
     _attr_state_class = SensorStateClass.MEASUREMENT
-    _attr_native_unit_of_measurement = "mi"
+    _attr_native_unit_of_measurement = "GBP/L"
     _attr_attribution = _ATTRIBUTION
     _attr_icon = "mdi:gas-station"
 
@@ -275,8 +275,15 @@ class StationSensor(CoordinatorEntity, SensorEntity):
         s = self._get_station()
         if s is None:
             return None
-        d = s.get("distance_km")
-        return round(d * KM_TO_MILES, 3) if d is not None else None
+        prices = s.get("prices", {})
+        available = {
+            ft: prices[ft]["price"]
+            for ft in prices
+            if prices.get(ft, {}).get("price") is not None
+        }
+        if not available:
+            return None
+        return round(min(available.values()), 3)
 
     @property
     def available(self) -> bool:
