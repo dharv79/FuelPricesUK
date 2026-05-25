@@ -194,7 +194,7 @@ class FuelPricesDataUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]
                 latitude=lat,
                 longitude=lon,
                 radius_km=self._radius_km,
-                fuel_types=FUEL_TYPES,
+                fuel_types=self._fuel_types,
             )
         except Exception as exc:
             raise UpdateFailed(f"Error fetching fuel price data: {exc}") from exc
