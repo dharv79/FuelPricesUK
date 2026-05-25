@@ -188,7 +188,7 @@ class FuelPricesDataUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]
             return []
 
         try:
-            return await fetch_stations_by_criteria(
+            results = await fetch_stations_by_criteria(
                 self.api_client,
                 latitude=lat,
                 longitude=lon,
@@ -197,3 +197,16 @@ class FuelPricesDataUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]
             )
         except Exception as exc:
             raise UpdateFailed(f"Error fetching fuel price data: {exc}") from exc
+
+        if results:
+            _LOGGER.info(
+                "Fuel Prices UK: %d station(s) found within %.1f km of (%.4f, %.4f)",
+                len(results), self._radius_km, lat, lon,
+            )
+        else:
+            _LOGGER.warning(
+                "Fuel Prices UK: no stations found within %.1f km of (%.4f, %.4f) "
+                "for fuel types %s — check location and radius settings",
+                self._radius_km, lat, lon, self._fuel_types,
+            )
+        return results

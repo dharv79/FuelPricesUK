@@ -78,6 +78,7 @@ async def fetch_stations_by_criteria(
         _LOGGER.warning("fetch_stations_by_criteria called with no search criteria")
         return []
 
+    _LOGGER.info("Fuel Prices UK: fetching station and price data from API…")
     try:
         stations_raw, prices_raw = await asyncio.gather(
             client.get_all_stations(),
@@ -86,6 +87,10 @@ async def fetch_stations_by_criteria(
     except Exception:
         _LOGGER.error("Failed to fetch data from Fuel Finder API", exc_info=True)
         raise
+    _LOGGER.info(
+        "Fuel Prices UK: API returned %d station records and %d price records",
+        len(stations_raw), len(prices_raw),
+    )
 
     # Build price lookup: site_id → {canonical_fuel_type → {price, last_updated}}
     price_map: dict[str, dict[str, Any]] = {}
@@ -176,7 +181,7 @@ async def fetch_stations_by_criteria(
         )
         seen.add(sid)
 
-    _LOGGER.debug("fetch_stations_by_criteria → %d stations", len(results))
+    _LOGGER.debug("fetch_stations_by_criteria → %d stations after filtering", len(results))
     return results
 
 
