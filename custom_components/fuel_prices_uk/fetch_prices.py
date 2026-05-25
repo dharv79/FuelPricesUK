@@ -18,6 +18,9 @@ _FUEL_TYPE_ALIASES: dict[str, str] = {
     "SUPER_DIESEL": "SDV",
     "PREMIUM_UNLEADED": "E5",
     "PREMIUM_DIESEL": "SDV",
+    # Current API naming (as of 2026)
+    "B7_STANDARD": "B7",
+    "B7_PREMIUM": "SDV",
 }
 
 # Prices above this threshold are assumed to be in pence and divided by 100.
