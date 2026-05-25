@@ -25,13 +25,13 @@ views:
           {%- for i in range(1, 51) -%}
             {%- set eid = 'sensor.fuel_prices_uk_station_' ~ i -%}
             {%- if state_attr(eid, 'e10_price') is not none -%}
-              {%- set ns.rows = ns.rows + [{'name': state_attr(eid, 'station_name'), 'brand': state_attr(eid, 'brand'), 'e10': state_attr(eid, 'e10_price'), 'dist': state_attr(eid, 'distance_miles'), 'addr': state_attr(eid, 'address'), 'post': state_attr(eid, 'postcode')}] -%}
+              {%- set ns.rows = ns.rows + [{'name': state_attr(eid, 'station_name'), 'brand': state_attr(eid, 'brand'), 'e10': state_attr(eid, 'e10_price'), 'dist': state_attr(eid, 'distance_miles'), 'post': state_attr(eid, 'postcode'), 'updated': state_attr(eid, 'last_updated')}] -%}
             {%- endif -%}
           {%- endfor %}
-          | # | Station | **£/L** | Distance | Address |
-          | --- | --- | --- | --- | --- |
+          | # | Station | **£/L** | Distance | Postcode | Updated |
+          | --- | --- | --- | --- | --- | --- |
           {% for s in ns.rows | sort(attribute='e10') -%}
-          | {{ loop.index }} | {{ s.name }} ({{ s.brand }}) | **{{ s.e10 }}** | {{ s.dist }} mi | {{ s.addr }}, {{ s.post }} |
+          | {{ loop.index }} | {{ s.name }} ({{ s.brand }}) | **{{ s.e10 }}** | {{ s.dist }} mi | {{ s.post }} | {{ s.updated[:16].replace('T',' ') if s.updated else '—' }} |
           {% endfor %}
 
       # ── Cheapest B7 Diesel ───────────────────────────────────────────────────
@@ -42,13 +42,13 @@ views:
           {%- for i in range(1, 51) -%}
             {%- set eid = 'sensor.fuel_prices_uk_station_' ~ i -%}
             {%- if state_attr(eid, 'b7_price') is not none -%}
-              {%- set ns.rows = ns.rows + [{'name': state_attr(eid, 'station_name'), 'brand': state_attr(eid, 'brand'), 'b7': state_attr(eid, 'b7_price'), 'dist': state_attr(eid, 'distance_miles'), 'addr': state_attr(eid, 'address'), 'post': state_attr(eid, 'postcode')}] -%}
+              {%- set ns.rows = ns.rows + [{'name': state_attr(eid, 'station_name'), 'brand': state_attr(eid, 'brand'), 'b7': state_attr(eid, 'b7_price'), 'dist': state_attr(eid, 'distance_miles'), 'post': state_attr(eid, 'postcode'), 'updated': state_attr(eid, 'last_updated')}] -%}
             {%- endif -%}
           {%- endfor %}
-          | # | Station | **£/L** | Distance | Address |
-          | --- | --- | --- | --- | --- |
+          | # | Station | **£/L** | Distance | Postcode | Updated |
+          | --- | --- | --- | --- | --- | --- |
           {% for s in ns.rows | sort(attribute='b7') -%}
-          | {{ loop.index }} | {{ s.name }} ({{ s.brand }}) | **{{ s.b7 }}** | {{ s.dist }} mi | {{ s.addr }}, {{ s.post }} |
+          | {{ loop.index }} | {{ s.name }} ({{ s.brand }}) | **{{ s.b7 }}** | {{ s.dist }} mi | {{ s.post }} | {{ s.updated[:16].replace('T',' ') if s.updated else '—' }} |
           {% endfor %}
 
       # ── Cheapest E5 Super Unleaded ───────────────────────────────────────────
@@ -59,13 +59,13 @@ views:
           {%- for i in range(1, 51) -%}
             {%- set eid = 'sensor.fuel_prices_uk_station_' ~ i -%}
             {%- if state_attr(eid, 'e5_price') is not none -%}
-              {%- set ns.rows = ns.rows + [{'name': state_attr(eid, 'station_name'), 'brand': state_attr(eid, 'brand'), 'e5': state_attr(eid, 'e5_price'), 'dist': state_attr(eid, 'distance_miles'), 'addr': state_attr(eid, 'address'), 'post': state_attr(eid, 'postcode')}] -%}
+              {%- set ns.rows = ns.rows + [{'name': state_attr(eid, 'station_name'), 'brand': state_attr(eid, 'brand'), 'e5': state_attr(eid, 'e5_price'), 'dist': state_attr(eid, 'distance_miles'), 'post': state_attr(eid, 'postcode'), 'updated': state_attr(eid, 'last_updated')}] -%}
             {%- endif -%}
           {%- endfor %}
-          | # | Station | **£/L** | Distance | Address |
-          | --- | --- | --- | --- | --- |
+          | # | Station | **£/L** | Distance | Postcode | Updated |
+          | --- | --- | --- | --- | --- | --- |
           {% for s in ns.rows | sort(attribute='e5') -%}
-          | {{ loop.index }} | {{ s.name }} ({{ s.brand }}) | **{{ s.e5 }}** | {{ s.dist }} mi | {{ s.addr }}, {{ s.post }} |
+          | {{ loop.index }} | {{ s.name }} ({{ s.brand }}) | **{{ s.e5 }}** | {{ s.dist }} mi | {{ s.post }} | {{ s.updated[:16].replace('T',' ') if s.updated else '—' }} |
           {% endfor %}
 
       # ── Cheapest SDV Super Diesel ────────────────────────────────────────────
@@ -76,13 +76,13 @@ views:
           {%- for i in range(1, 51) -%}
             {%- set eid = 'sensor.fuel_prices_uk_station_' ~ i -%}
             {%- if state_attr(eid, 'sdv_price') is not none -%}
-              {%- set ns.rows = ns.rows + [{'name': state_attr(eid, 'station_name'), 'brand': state_attr(eid, 'brand'), 'sdv': state_attr(eid, 'sdv_price'), 'dist': state_attr(eid, 'distance_miles'), 'addr': state_attr(eid, 'address'), 'post': state_attr(eid, 'postcode')}] -%}
+              {%- set ns.rows = ns.rows + [{'name': state_attr(eid, 'station_name'), 'brand': state_attr(eid, 'brand'), 'sdv': state_attr(eid, 'sdv_price'), 'dist': state_attr(eid, 'distance_miles'), 'post': state_attr(eid, 'postcode'), 'updated': state_attr(eid, 'last_updated')}] -%}
             {%- endif -%}
           {%- endfor %}
-          | # | Station | **£/L** | Distance | Address |
-          | --- | --- | --- | --- | --- |
+          | # | Station | **£/L** | Distance | Postcode | Updated |
+          | --- | --- | --- | --- | --- | --- |
           {% for s in ns.rows | sort(attribute='sdv') -%}
-          | {{ loop.index }} | {{ s.name }} ({{ s.brand }}) | **{{ s.sdv }}** | {{ s.dist }} mi | {{ s.addr }}, {{ s.post }} |
+          | {{ loop.index }} | {{ s.name }} ({{ s.brand }}) | **{{ s.sdv }}** | {{ s.dist }} mi | {{ s.post }} | {{ s.updated[:16].replace('T',' ') if s.updated else '—' }} |
           {% endfor %}
 
       # ── All Nearby Stations — prices at a glance ─────────────────────────────
@@ -91,12 +91,13 @@ views:
       - type: markdown
         title: Nearby Stations — all prices by distance
         content: |
-          | # | Station | E10 | B7 | E5 | SDV | Distance | Address |
+          | # | Station | E10 | B7 | E5 | SDV | Distance | Updated |
           | --- | --- | --- | --- | --- | --- | --- | --- |
           {% for i in range(1, 51) -%}
           {%- set eid = 'sensor.fuel_prices_uk_station_' ~ i -%}
           {%- if state_attr(eid, 'station_name') is not none -%}
-          | {{ i }} | {{ state_attr(eid, 'station_name') }} ({{ state_attr(eid, 'brand') }}) | {{ state_attr(eid, 'e10_price') or '—' }} | {{ state_attr(eid, 'b7_price') or '—' }} | {{ state_attr(eid, 'e5_price') or '—' }} | {{ state_attr(eid, 'sdv_price') or '—' }} | {{ state_attr(eid, 'distance_miles') }} mi | {{ state_attr(eid, 'address') }}, {{ state_attr(eid, 'postcode') }} |
+          {%- set upd = state_attr(eid, 'last_updated') -%}
+          | {{ i }} | {{ state_attr(eid, 'station_name') }} ({{ state_attr(eid, 'brand') }}) | {{ state_attr(eid, 'e10_price') or '—' }} | {{ state_attr(eid, 'b7_price') or '—' }} | {{ state_attr(eid, 'e5_price') or '—' }} | {{ state_attr(eid, 'sdv_price') or '—' }} | {{ state_attr(eid, 'distance_miles') }} mi | {{ upd[:16].replace('T',' ') if upd else '—' }} |
           {% endif -%}
           {% endfor %}
 

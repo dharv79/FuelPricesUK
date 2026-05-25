@@ -329,4 +329,11 @@ class StationSensor(CoordinatorEntity, SensorEntity):
             attrs["cheapest_fuel_type"] = None
             attrs["cheapest_price"] = None
 
+        all_timestamps = [
+            info["last_updated"]
+            for ft in FUEL_TYPES
+            if (info := prices.get(ft)) and info.get("last_updated")
+        ]
+        attrs["last_updated"] = max(all_timestamps) if all_timestamps else None
+
         return attrs
