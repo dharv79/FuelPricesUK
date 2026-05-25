@@ -28,7 +28,7 @@ _RATE_LIMIT_UNTIL: float = 0.0
 _RATE_LIMIT_LOCK = asyncio.Lock()
 
 # Minimum gap between any two API requests (enforced globally).
-_MIN_REQUEST_INTERVAL = 2.05  # seconds
+_MIN_REQUEST_INTERVAL = 0.2  # seconds — courtesy throttle; 429 handler manages hard limits
 _LAST_REQUEST_AT: float = 0.0
 
 
