@@ -1,0 +1,74 @@
+name: Create Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g. 2026.05.25)'
+        required: true
+        default: '2026.05.25'
+      release_notes:
+        description: 'Additional release notes (optional)'
+        required: false
+        default: ''
+
+jobs:
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create and push tag
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git tag -a "${{ github.event.inputs.version }}" \
+            -m "Fuel Prices UK v${{ github.event.inputs.version }}"
+          git push origin "${{ github.event.inputs.version }}"
+
+      - name: Build release notes
+        id: notes
+        run: |
+          EXTRA="${{ github.event.inputs.release_notes }}"
+          cat <<'EOF' > release_notes.md
+          ## Fuel Prices UK v${{ github.event.inputs.version }}
+
+          Home Assistant HACS integration for the UK Government Fuel Finder API.
+
+          ### Setup
+          1. Install via HACS (custom repository: `https://github.com/dharv79/FuelPricesUK`)
+          2. Restart Home Assistant
+          3. **Settings → Devices & Services → Add Integration → Fuel Prices UK**
+          4. Enter your **Client ID** and **Client Secret** from [developer.fuel-finder.service.gov.uk](https://www.developer.fuel-finder.service.gov.uk)
+          5. Enter a UK postcode or town name to set your search location
+          6. Choose fuel types (E10 / E5 / B7 / SDV) and search radius
+
+          ### What's in this release
+          - OAuth2 client credentials authentication against the UK Government Fuel Finder API
+          - Location search by **UK postcode**, **town/address name**, **lat/lon**, or HA home location
+          - Sensors for cheapest and nearest stations per fuel type (E10, E5, B7, SDV)
+          - Paginated API client with shared token cache and 429 rate-limit back-off
+          - `CLAUDE.md` documenting architecture, API endpoints, and all config options
+          EOF
+
+          if [ -n "$EXTRA" ]; then
+            echo "" >> release_notes.md
+            echo "### Additional notes" >> release_notes.md
+            echo "$EXTRA" >> release_notes.md
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.version }}
+          name: Fuel Prices UK v${{ github.event.inputs.version }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: false
