@@ -34,6 +34,7 @@ from .const import (
     ENTRY_TITLE,
     FUEL_TYPE_B7,
     FUEL_TYPE_E10,
+    FUEL_TYPES,
 )
 from .fetch_prices import fetch_stations_by_criteria
 
@@ -193,7 +194,7 @@ class FuelPricesDataUpdateCoordinator(DataUpdateCoordinator[list[dict[str, Any]]
                 latitude=lat,
                 longitude=lon,
                 radius_km=self._radius_km,
-                fuel_types=self._fuel_types,
+                fuel_types=FUEL_TYPES,
             )
         except Exception as exc:
             raise UpdateFailed(f"Error fetching fuel price data: {exc}") from exc

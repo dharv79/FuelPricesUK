@@ -30,6 +30,7 @@
           "fuel_sdv": "SDV — Super Diesel",
           "cheapest_count": "Number of cheapest-price sensors per fuel type",
           "nearest_count": "Number of nearest-station sensors per fuel type (0 = disabled)",
+          "station_count": "Nearby station sensors (0 = disabled, max 50)",
           "update_interval": "Update interval (seconds, min 300)",
           "max_data_age_days": "Ignore price data older than N days (0 = show all)"
         }
@@ -60,6 +61,7 @@
           "fuel_sdv": "SDV — Super Diesel",
           "cheapest_count": "Cheapest-price sensors per fuel type",
           "nearest_count": "Nearest-station sensors per fuel type",
+          "station_count": "Nearby station sensors (0 = disabled, max 50)",
           "update_interval": "Update interval (seconds)",
           "max_data_age_days": "Max data age (days)"
         }
