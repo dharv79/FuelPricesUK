@@ -7,6 +7,7 @@ import time
 from typing import Any
 
 import aiohttp
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import (
     API_BASE_URL,
@@ -46,16 +47,10 @@ class FuelPricesAPI:
         self._hass = hass
         self._client_id = client_id
         self._client_secret = client_secret
-        self._session: aiohttp.ClientSession | None = None
 
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
-
-    def _session_get(self) -> aiohttp.ClientSession:
-        if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession()
-        return self._session
 
     async def _get_token(self) -> str:
         """Return a valid access token, refreshing from API if expired."""
@@ -67,7 +62,7 @@ class FuelPricesAPI:
 
             _LOGGER.debug("Requesting new OAuth token from Fuel Finder API")
             url = f"{API_BASE_URL}{API_TOKEN_PATH}"
-            session = self._session_get()
+            session = async_get_clientsession(self._hass)
             async with session.post(
                 url,
                 json={
@@ -101,25 +96,26 @@ class FuelPricesAPI:
         """Make an authenticated API request with rate-limit backoff and retry."""
         global _RATE_LIMIT_UNTIL, _LAST_REQUEST_AT
 
+        extra_headers: dict[str, str] = kwargs.pop("headers", {})
+
         for attempt in range(4):
-            # Enforce minimum inter-request interval.
+            # Compute wait times while holding the lock, then sleep outside it.
             async with _RATE_LIMIT_LOCK:
                 now = time.time()
                 gap = _MIN_REQUEST_INTERVAL - (now - _LAST_REQUEST_AT)
-                if gap > 0:
-                    await asyncio.sleep(gap)
-                wait = _RATE_LIMIT_UNTIL - time.time()
-                if wait > 0:
-                    _LOGGER.debug("Rate-limit cooldown — waiting %.1fs", wait)
-                    await asyncio.sleep(wait)
+                cooldown = _RATE_LIMIT_UNTIL - now
                 _LAST_REQUEST_AT = time.time()
 
-            token = await self._get_token()
-            headers = kwargs.pop("headers", {})
-            headers["Authorization"] = f"Bearer {token}"
-            headers["Accept"] = "application/json"
+            if gap > 0:
+                await asyncio.sleep(gap)
+            if cooldown > 0:
+                _LOGGER.debug("Rate-limit cooldown — waiting %.1fs", cooldown)
+                await asyncio.sleep(cooldown)
 
-            session = self._session_get()
+            token = await self._get_token()
+            headers = {**extra_headers, "Authorization": f"Bearer {token}", "Accept": "application/json"}
+
+            session = async_get_clientsession(self._hass)
             try:
                 async with session.request(
                     method,
@@ -182,10 +178,6 @@ class FuelPricesAPI:
     async def get_all_fuel_prices(self) -> list[dict[str, Any]]:
         """Fetch every price record across all batches."""
         return await _fetch_all_pages(self.get_fuel_prices)
-
-    async def close(self) -> None:
-        if self._session and not self._session.closed:
-            await self._session.close()
 
 
 # ------------------------------------------------------------------
