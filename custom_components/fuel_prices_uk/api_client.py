@@ -26,6 +26,10 @@ _TOKEN_LOCK = asyncio.Lock()
 _RATE_LIMIT_UNTIL: float = 0.0
 _RATE_LIMIT_LOCK = asyncio.Lock()
 
+# Minimum gap between any two API requests (enforced globally).
+_MIN_REQUEST_INTERVAL = 2.05  # seconds
+_LAST_REQUEST_AT: float = 0.0
+
 
 class ApiHttpError(Exception):
     """Raised when the API returns an unexpected HTTP status."""
@@ -66,11 +70,11 @@ class FuelPricesAPI:
             session = self._session_get()
             async with session.post(
                 url,
-                data={
-                    "grant_type": "client_credentials",
+                json={
                     "client_id": self._client_id,
                     "client_secret": self._client_secret,
                 },
+                headers={"Content-Type": "application/json", "Accept": "application/json"},
                 timeout=aiohttp.ClientTimeout(total=30),
             ) as resp:
                 if resp.status != 200:
@@ -78,25 +82,37 @@ class FuelPricesAPI:
                     raise ApiHttpError(resp.status, text[:200])
                 data = await resp.json()
 
-            token: str = data.get("access_token") or data.get("token", "")
+            # Token may be at top level or nested under a "data" key.
+            payload = data.get("data", data) if isinstance(data, dict) else data
+            token: str = (
+                payload.get("access_token")
+                or payload.get("token")
+                or data.get("access_token")
+                or data.get("token", "")
+            )
             if not token:
-                raise ApiHttpError(200, "No token in response")
-            expires_in = int(data.get("expires_in", 3600))
+                raise ApiHttpError(200, f"No token in response: {str(data)[:200]}")
+            expires_in = int(payload.get("expires_in") or data.get("expires_in") or 3600)
             _TOKEN_CACHE[cache_key] = (token, time.time() + expires_in)
             _LOGGER.debug("New token obtained, expires in %ds", expires_in)
             return token
 
     async def _request(self, method: str, path: str, **kwargs: Any) -> Any:
         """Make an authenticated API request with rate-limit backoff and retry."""
-        global _RATE_LIMIT_UNTIL
+        global _RATE_LIMIT_UNTIL, _LAST_REQUEST_AT
 
         for attempt in range(4):
+            # Enforce minimum inter-request interval.
             async with _RATE_LIMIT_LOCK:
+                now = time.time()
+                gap = _MIN_REQUEST_INTERVAL - (now - _LAST_REQUEST_AT)
+                if gap > 0:
+                    await asyncio.sleep(gap)
                 wait = _RATE_LIMIT_UNTIL - time.time()
                 if wait > 0:
                     _LOGGER.debug("Rate-limit cooldown — waiting %.1fs", wait)
-            if wait > 0:
-                await asyncio.sleep(wait)
+                    await asyncio.sleep(wait)
+                _LAST_REQUEST_AT = time.time()
 
             token = await self._get_token()
             headers = kwargs.pop("headers", {})
