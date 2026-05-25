@@ -194,11 +194,16 @@ class FuelPricesAPI:
 
 
 async def _fetch_all_pages(page_fn: Any) -> list[dict[str, Any]]:
-    """Call page_fn(batch_number=N) repeatedly until an empty batch is returned."""
+    """Call page_fn(batch_number=N) repeatedly until the API returns 404 (no more batches)."""
     records: list[dict[str, Any]] = []
     batch_number = 1
     while True:
-        data = await page_fn(batch_number=batch_number)
+        try:
+            data = await page_fn(batch_number=batch_number)
+        except ApiHttpError as exc:
+            if exc.status == 404:
+                break  # API signals end-of-data with 404, not an empty response
+            raise
         batch = _extract_records(data)
         if not batch:
             break
