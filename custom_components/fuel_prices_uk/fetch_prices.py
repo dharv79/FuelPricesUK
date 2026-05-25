@@ -102,9 +102,11 @@ async def fetch_stations_by_criteria(
         # Collect all unique raw fuel type strings to detect alias gaps.
         raw_fuel_types: set[str] = set()
         for _rec in prices_raw:
-            nested = _rec.get("fuel_prices")
-            if isinstance(nested, list):
-                for _fp in nested:
+            _nested = _rec.get("fuel_prices") or _rec.get("fuel_types")
+            if isinstance(_nested, list):
+                for _fp in _nested:
+                    if not isinstance(_fp, dict):
+                        continue
                     _rt = _str_field(_fp, "fuel_type", "fuelType", "type")
                     if _rt:
                         raw_fuel_types.add(_rt)
@@ -126,10 +128,13 @@ async def fetch_stations_by_criteria(
         if not sid:
             skipped_no_sid += 1
             continue
-        nested = rec.get("fuel_prices")
+        nested = rec.get("fuel_prices") or rec.get("fuel_types")
         if isinstance(nested, list):
-            # New API format: fuel prices are a nested list within each station record
+            # Nested format: fuel prices are a list within each station/price record.
+            # The key may be "fuel_prices" or "fuel_types" depending on the endpoint.
             for fp in nested:
+                if not isinstance(fp, dict):
+                    continue
                 raw_ft = _str_field(fp, "fuel_type", "fuelType", "type")
                 ft = _normalise_fuel_type(raw_ft) if raw_ft else ""
                 if not ft:

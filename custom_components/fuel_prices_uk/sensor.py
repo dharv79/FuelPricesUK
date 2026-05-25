@@ -101,11 +101,14 @@ def _filter_and_price(
                 pass
         result.append({**station, "_price": float(price), "_fuel_type": fuel_type})
     if not result and stations:
+        available_types = sorted({
+            ft for s in stations for ft in s.get("prices", {})
+        })
         _LOGGER.warning(
             "Fuel Prices UK: no %s prices passed sensor filter "
-            "(checked %d stations, cutoff=%s) — "
-            "try increasing max_data_age_days in Options",
-            fuel_type, len(stations), cutoff,
+            "(checked %d stations, cutoff=%s, fuel types available at these stations: %s) — "
+            "try increasing search radius in Options",
+            fuel_type, len(stations), cutoff, available_types,
         )
     return result
 
