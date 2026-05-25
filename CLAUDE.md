@@ -2,12 +2,13 @@
 
 ## Project overview
 
-A Home Assistant custom component (HACS integration) that surfaces live UK petrol-station fuel prices as HA sensors. Data is sourced from the **UK Government Fuel Finder** public API.
+A Home Assistant custom component (HACS integration) that surfaces live UK petrol-station fuel prices as HA sensors, sourced from the **UK Government Fuel Finder** open data scheme.
 
-- **API portal**: https://www.developer.fuel-finder.service.gov.uk/public-api
-- **Data scheme**: https://www.gov.uk/guidance/access-the-latest-fuel-prices-and-forecourt-data-via-api-or-email
-- **HACS compatible**: yes (`hacs.json` in repo root, component under `custom_components/fuel_prices_uk/`)
+- **API developer portal**: https://www.developer.fuel-finder.service.gov.uk/public-api
+- **GOV.UK guidance**: https://www.gov.uk/guidance/access-the-latest-fuel-prices-and-forecourt-data-via-api-or-email
+- **HACS compatible**: yes — `hacs.json` in repo root, component under `custom_components/fuel_prices_uk/`
 - **Minimum HA version**: 2024.6.0
+- **Licence**: Apache 2.0
 
 ---
 
@@ -15,30 +16,33 @@ A Home Assistant custom component (HACS integration) that surfaces live UK petro
 
 ```
 FuelPricesUK/
-├── CLAUDE.md                                   ← this file
-├── hacs.json                                   ← HACS metadata
-├── README.md
+├── CLAUDE.md                                        ← this file
+├── README.md                                        ← user-facing docs (rendered by HACS)
+├── hacs.json                                        ← HACS metadata
+├── .github/
+│   └── workflows/
+│       └── release.yml                              ← manual trigger workflow to tag + publish release
 └── custom_components/
     └── fuel_prices_uk/
         ├── __init__.py          ← integration setup + DataUpdateCoordinator
-        ├── api_client.py        ← OAuth2 + REST client for the Fuel Finder API
-        ├── config_flow.py       ← UI setup wizard (credentials → location → options)
-        ├── const.py             ← all shared constants
-        ├── fetch_prices.py      ← merges station + price data, radius/text filter
-        ├── manifest.json        ← HA integration manifest
-        ├── sensor.py            ← sensor platform (cheapest + nearest entities)
-        ├── strings.json         ← UI strings referenced by config flow
+        ├── api_client.py        ← OAuth2 token management + paginated REST client
+        ├── config_flow.py       ← 3-step UI wizard: credentials → location → options
+        ├── const.py             ← all shared constants and defaults
+        ├── fetch_prices.py      ← merges station + price data; radius/text filter
+        ├── manifest.json        ← HA integration manifest (domain, version, requirements)
+        ├── sensor.py            ← CheapestFuelPriceSensor + NearestFuelStationSensor
+        ├── strings.json         ← config flow UI strings (referenced by HA frontend)
         └── translations/
-            └── en.json          ← English translations (copy of strings.json)
+            └── en.json          ← English translations (mirrors strings.json)
 ```
 
 ---
 
-## API details
+## API
 
 ### Authentication
 
-OAuth 2.0 **client credentials** flow. Credentials are issued via the developer portal.
+OAuth 2.0 **client credentials** flow. Credentials are issued free via the developer portal.
 
 ```
 POST https://api.fuel-finder.service.gov.uk/api/v1/oauth/generate_access_token
@@ -52,7 +56,7 @@ Response:
 { "access_token": "...", "expires_in": 3600, "token_type": "Bearer" }
 ```
 
-Use `Authorization: Bearer <token>` on all subsequent requests.
+All subsequent requests use `Authorization: Bearer <token>`.
 
 ### Key endpoints
 
@@ -61,7 +65,7 @@ Use `Authorization: Bearer <token>` on all subsequent requests.
 | `GET` | `/api/v1/pfs` | Station metadata (name, address, postcode, lat/lon, brand) |
 | `GET` | `/api/v1/pfs/fuel-prices` | Current fuel prices per station |
 
-Both endpoints support `?page=N&pageSize=500` pagination. The client pages until a batch smaller than `pageSize` is returned.
+Both support `?page=N&pageSize=500` pagination. The client pages until a batch smaller than `pageSize` is returned.
 
 ### Fuel types
 
@@ -72,124 +76,148 @@ Both endpoints support `?page=N&pageSize=500` pagination. The client pages until
 | `B7` | Standard diesel |
 | `SDV` | Super diesel / premium diesel |
 
-Prices are returned in **pence per litre**; the client converts values >100 to £/L automatically.
+Prices from the API are in **pence per litre**. The client converts any value > 100 to £/L automatically.
 
 ---
 
 ## Architecture
 
 ```
-config_flow.py          user enters credentials + location
+config_flow.py          credentials → location geocoding → options
        │
        ▼
 __init__.py             creates FuelPricesDataUpdateCoordinator
        │
        ▼
-fetch_prices.py         calls api_client.get_all_stations() +
-                        get_all_fuel_prices() concurrently,
-                        merges, filters by radius / fuel type
+fetch_prices.py         asyncio.gather(get_all_stations, get_all_fuel_prices)
+                        → merges on site_id
+                        → haversine radius filter
+                        → fuel type filter
        │
        ▼
-sensor.py               reads coordinator.data to expose
-                        CheapestFuelPriceSensor + NearestFuelStationSensor
+sensor.py               reads coordinator.data
+                        CheapestFuelPriceSensor  (sorted by price asc)
+                        NearestFuelStationSensor (sorted by distance asc)
 ```
 
-### Coordinator (`FuelPricesDataUpdateCoordinator`)
+### `FuelPricesDataUpdateCoordinator` (`__init__.py`)
 
-- Lives in `__init__.py`, extends `DataUpdateCoordinator[list[dict]]`.
-- On startup, fires a background refresh (staggered by 15 s per entry to avoid API bursts).
-- Retries once after 30 s if the first refresh fails.
-- Supports `device_tracker` entity as a dynamic location source.
+- Extends `DataUpdateCoordinator[list[dict]]`.
+- On startup fires a background refresh, staggered by 15 s per config entry to avoid simultaneous API bursts when multiple locations are configured.
+- Retries once after 30 s if the initial refresh fails.
+- Optionally overrides lat/lon from a `device_tracker` entity for mobile tracking.
+- `always_update=False` — suppresses HA state writes when data is unchanged.
 
-### API client (`FuelPricesAPI`)
+### `FuelPricesAPI` (`api_client.py`)
 
-- Manages a shared token cache keyed by `(client_id, client_secret)` — multiple config entries sharing the same credentials reuse one token.
-- Handles 429 rate-limit responses with `Retry-After` back-off and retries up to 4 times.
-- Pages through all records automatically via `get_all_stations()` / `get_all_fuel_prices()`.
+- Module-level `_TOKEN_CACHE` keyed on `(client_id, client_secret)` — multiple config entries sharing the same credentials share one token, halving auth requests.
+- Module-level `_RATE_LIMIT_UNTIL` — shared backoff timer so concurrent entries don't independently hammer the API after a 429.
+- Retries up to 4 times with exponential back-off on network errors; honours `Retry-After` on 429.
+- `_fetch_all_pages()` helper pages until a batch < `page_size` is returned.
+- `_extract_records()` walks nested API responses to locate the records list regardless of key name.
 
-### Location resolution (`config_flow._geocode`)
+### Location geocoding (`config_flow._geocode`)
 
-1. **Postcodes.io** — tried first for anything that looks like a UK postcode (fast, authoritative).
-2. **Nominatim (OpenStreetMap)** — fallback for town names, addresses, etc.
+1. **Postcodes.io** (`api.postcodes.io`) — tried first; fast and authoritative for UK postcodes, no auth required.
+2. **Nominatim** (OpenStreetMap) — fallback for town names, addresses, and partial postcodes.
 
----
+Both use `async_get_clientsession(hass)` — HA's shared `aiohttp` session.
 
-## Sensors produced
+### Sensors (`sensor.py`)
 
-For each configured fuel type, the integration creates:
+`CheapestFuelPriceSensor` — filters stations with a valid, non-stale price for the target fuel type, sorts by `(price, site_id)`, returns the Nth entry.
 
-- **Cheapest** sensors (1–5): `sensor.fuel_prices_uk_<location>_cheapest_<fuel>`, `…_2nd_cheapest_<fuel>`, …
-- **Nearest** sensors (0–5): `sensor.fuel_prices_uk_<location>_1st_nearest_<fuel>`, …
+`NearestFuelStationSensor` — same filter, sorts by `(distance_km, site_id)` instead.
 
-State = price in **£/L** (3 decimal places). Attributes include:
-
-| Attribute | Description |
-|-----------|-------------|
-| `fuel_type` | `E10`, `E5`, `B7`, or `SDV` |
-| `station_name` | Forecourt name |
-| `brand` | e.g. `BP`, `Shell`, `Tesco` |
-| `address` | Street address |
-| `postcode` | Station postcode |
-| `latitude` / `longitude` | Station coordinates |
-| `distance_km` / `distance_miles` | Distance from search point |
-| `price_rank` / `distance_rank` | Rank (1 = cheapest / nearest) |
-| `last_updated` | ISO-8601 timestamp from the API |
+State = `£/L` (3 dp). Key attributes: `station_name`, `brand`, `address`, `postcode`, `latitude`, `longitude`, `distance_km`, `distance_miles`, `price_rank` / `distance_rank`, `last_updated`.
 
 ---
 
 ## Configuration options
 
-| Option | Default | Range | Description |
-|--------|---------|-------|-------------|
+| Key | Default | Range | Description |
+|-----|---------|-------|-------------|
 | `client_id` | — | — | API Client ID |
 | `client_secret` | — | — | API Client Secret |
-| Location method | `address` | home / address / coordinates | How to set the search centre |
+| Location method | `address` | home / address / coordinates | How the search centre is set |
 | Postcode / address | — | — | UK postcode or place name |
-| `radius_miles` | 5 | 0.5–31 | Search radius |
-| Fuel types | E10, B7 | multi | Which fuel types to track |
-| `cheapest_count` | 3 | 1–5 | How many cheapest sensors per fuel type |
-| `nearest_count` | 0 | 0–5 | How many nearest sensors per fuel type |
-| `update_interval` | 3600 | 300–86400 | Refresh interval in seconds |
+| `radius` (stored as km) | 8 km (~5 mi) | 0.8–50 km | Search radius |
+| `fuel_types` | `[E10, B7]` | any subset | Which fuel types to track |
+| `cheapest_count` | 3 | 1–5 | Cheapest-price sensors per fuel type |
+| `nearest_count` | 0 | 0–5 | Nearest-station sensors per fuel type |
+| `update_interval` | 3600 s | 300–86400 | Refresh interval |
 | `max_data_age_days` | 1 | 0–30 | Drop stale price records (0 = keep all) |
+
+Config is stored in the HA config entry. Options (everything except credentials and location) can be changed via the Options flow without reinstalling.
 
 ---
 
-## Installation (HACS)
+## Release process
 
-1. In HACS → Integrations → click the three-dot menu → **Custom repositories**.
-2. Add `https://github.com/dharv79/fuelpricesuk` with category **Integration**.
-3. Click **Download**.
-4. Restart Home Assistant.
-5. Go to **Settings → Devices & Services → Add Integration** → search **Fuel Prices UK**.
+Releases are published via GitHub Actions because the managed remote execution environment (Claude Code on the web) does not permit pushing git tags through its git proxy.
 
-### Manual installation
+**To publish a release:**
 
-Copy `custom_components/fuel_prices_uk/` into your HA `config/custom_components/` directory, then restart.
+1. Go to **Actions → Create Release → Run workflow** on GitHub
+2. Enter the version string (format: `YYYY.MM.DD`, e.g. `2026.05.25`)
+3. Optionally add extra release notes
+4. Click **Run workflow**
+
+The workflow (`release.yml`) will:
+- Create and push the annotated git tag
+- Generate release notes
+- Publish the GitHub release via `softprops/action-gh-release`
+
+The `version` field in `manifest.json` must match the tag. Update it before triggering the workflow if bumping the version.
+
+---
+
+## Key design decisions
+
+| Decision | Reason |
+|----------|--------|
+| No `geopy` dependency | Geocoding done via `postcodes.io` + Nominatim over `aiohttp` (HA core dep). Avoids extra wheel install. |
+| Custom haversine in `fetch_prices.py` | Same reason — no geopy needed for distance. |
+| Shared token + rate-limit state at module level | Multiple config entries for different locations but same credentials reuse one token and coordinate 429 back-off. |
+| Prices > 100 divided by 100 | API sometimes returns pence; this normalises to £/L without knowing the API contract precisely. |
+| `always_update=False` on coordinator | Prevents unnecessary HA state writes and recorder DB churn when the API returns identical data. |
+| Postcodes.io before Nominatim | Postcodes.io is authoritative and instant for UK postcodes; Nominatim is the fallback for free-text queries. |
 
 ---
 
 ## Development
 
-### Running tests / linting
+### Install dev dependencies
 
 ```bash
-pip install homeassistant pytest pytest-homeassistant-custom-component
+pip install homeassistant pytest pytest-homeassistant-custom-component aiohttp aioresponses
+```
+
+### Run tests
+
+```bash
 pytest tests/
 ```
 
-### Key design decisions
+### Lint
 
-- **No geopy dependency** — geocoding uses `postcodes.io` (postcodes) and Nominatim (addresses) via `aiohttp`, which is already a core HA dependency. This avoids extra wheel installs.
-- **Shared token cache** — `_TOKEN_CACHE` in `api_client.py` is a module-level dict keyed by credential pair so concurrent config entries don't double-request tokens.
-- **Haversine distance** — implemented in `fetch_prices._haversine_km` to avoid the geopy dependency for distance calculations.
-- **Price unit normalisation** — prices above 100 are assumed to be in pence and divided by 100.0.
-- **`always_update=False`** on the coordinator — prevents unnecessary HA state writes when data hasn't changed.
+```bash
+pip install ruff
+ruff check custom_components/
+```
+
+### Bump version
+
+1. Update `version` in `custom_components/fuel_prices_uk/manifest.json`
+2. Commit to main
+3. Trigger the **Create Release** workflow with the new version string
 
 ---
 
 ## Useful links
 
-- [UK Government Fuel Finder developer portal](https://www.developer.fuel-finder.service.gov.uk)
-- [GOV.UK guidance — access fuel price data](https://www.gov.uk/guidance/access-the-latest-fuel-prices-and-forecourt-data-via-api-or-email)
-- [Home Assistant custom component docs](https://developers.home-assistant.io/docs/creating_integration_manifest)
-- [HACS documentation](https://hacs.xyz/docs/publish/integration)
+- [Fuel Finder developer portal](https://www.developer.fuel-finder.service.gov.uk)
+- [GOV.UK — access fuel price data](https://www.gov.uk/guidance/access-the-latest-fuel-prices-and-forecourt-data-via-api-or-email)
+- [Home Assistant integration manifest docs](https://developers.home-assistant.io/docs/creating_integration_manifest)
+- [HACS custom repository docs](https://hacs.xyz/docs/publish/integration)
+- [Postcodes.io API](https://postcodes.io)
