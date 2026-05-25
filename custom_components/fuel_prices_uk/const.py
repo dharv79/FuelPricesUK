@@ -53,7 +53,7 @@ MILES_TO_KM = 1.60934
 KM_TO_MILES = 1 / MILES_TO_KM
 
 # UK Government Fuel Finder API
-API_BASE_URL = "https://api.fuel-finder.service.gov.uk"
+API_BASE_URL = "https://www.fuel-finder.service.gov.uk"
 API_TOKEN_PATH = "/api/v1/oauth/generate_access_token"
 API_STATIONS_PATH = "/api/v1/pfs"
 API_PRICES_PATH = "/api/v1/pfs/fuel-prices"
