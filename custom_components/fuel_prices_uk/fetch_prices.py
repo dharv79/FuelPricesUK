@@ -92,6 +92,31 @@ async def fetch_stations_by_criteria(
         len(stations_raw), len(prices_raw),
     )
 
+    # Log raw API response structure to diagnose fuel type naming issues.
+    if prices_raw:
+        _LOGGER.info(
+            "Fuel Prices UK: first price record keys=%s sample=%s",
+            list(prices_raw[0].keys()),
+            str(prices_raw[0])[:500],
+        )
+        # Collect all unique raw fuel type strings to detect alias gaps.
+        raw_fuel_types: set[str] = set()
+        for _rec in prices_raw:
+            nested = _rec.get("fuel_prices")
+            if isinstance(nested, list):
+                for _fp in nested:
+                    _rt = _str_field(_fp, "fuel_type", "fuelType", "type")
+                    if _rt:
+                        raw_fuel_types.add(_rt)
+            else:
+                _rt = _str_field(_rec, "fuel_type", "fuelType", "type")
+                if _rt:
+                    raw_fuel_types.add(_rt)
+        normalised = {rt: _normalise_fuel_type(rt) for rt in sorted(raw_fuel_types)}
+        _LOGGER.info(
+            "Fuel Prices UK: raw fuel types from API → normalised: %s", normalised
+        )
+
     # Build price lookup: node_id/site_id → {canonical_fuel_type → {price, last_updated}}
     # The API returns records with a nested "fuel_prices" list; also handle legacy flat format.
     price_map: dict[str, dict[str, Any]] = {}
@@ -158,6 +183,13 @@ async def fetch_stations_by_criteria(
         len(price_map), skipped_no_sid + skipped_no_ft + skipped_no_price,
         skipped_no_sid, skipped_no_ft, skipped_no_price,
     )
+    # Count how many stations have each canonical fuel type.
+    from collections import Counter
+    ft_counts: Counter = Counter()
+    for _prices in price_map.values():
+        for _ft in _prices:
+            ft_counts[_ft] += 1
+    _LOGGER.info("Fuel Prices UK: canonical fuel type coverage across ALL stations: %s", dict(ft_counts))
     if prices_raw and not price_map:
         _LOGGER.warning(
             "Fuel Prices UK: price map is EMPTY despite %d raw price records — "
