@@ -201,16 +201,28 @@ async def fetch_stations_by_criteria(
             if not any(sq in f.lower() for f in (name, addr, postcode) if f):
                 continue
 
-        # Coordinates
+        # Coordinates — may be top-level or nested under a "location" object
+        loc = station.get("location") or {}
+        if not isinstance(loc, dict):
+            loc = {}
         try:
-            lat = float(station.get("latitude") or station.get("lat") or 0)
-            lon = float(
-                station.get("longitude")
-                or station.get("lon")
-                or station.get("lng")
-                or station.get("long")
+            lat = float(
+                station.get("latitude") or station.get("lat")
+                or loc.get("latitude") or loc.get("lat")
                 or 0
             )
+            lon = float(
+                station.get("longitude") or station.get("lon")
+                or station.get("lng") or station.get("long")
+                or loc.get("longitude") or loc.get("lon")
+                or loc.get("lng") or loc.get("long")
+                or 0
+            )
+            # GeoJSON Point: {"type": "Point", "coordinates": [lng, lat]}
+            if lat == 0.0 and lon == 0.0 and loc.get("type") == "Point":
+                coords = loc.get("coordinates") or []
+                if len(coords) >= 2:
+                    lon, lat = float(coords[0]), float(coords[1])
         except (TypeError, ValueError):
             lat = lon = 0.0
 
