@@ -170,9 +170,10 @@ class CheapestFuelPriceSensor(CoordinatorEntity, SensorEntity):
         s = self._ranked_station()
         if not s:
             return {}
-        price_info = s.get("prices", {}).get(self._fuel_type, {})
+        prices = s.get("prices", {})
+        price_info = prices.get(self._fuel_type, {})
         dist_km = s.get("distance_km")
-        return {
+        attrs: dict[str, Any] = {
             "fuel_type": self._fuel_type,
             "fuel_type_label": FUEL_LABELS.get(self._fuel_type, self._fuel_type),
             "price_rank": self._rank,
@@ -190,6 +191,10 @@ class CheapestFuelPriceSensor(CoordinatorEntity, SensorEntity):
             "site_id": s.get("site_id"),
             "last_updated": price_info.get("last_updated"),
         }
+        for ft in FUEL_TYPES:
+            info = prices.get(ft)
+            attrs[f"{ft.lower()}_price"] = info["price"] if info else None
+        return attrs
 
 
 class NearestFuelStationSensor(CheapestFuelPriceSensor):
