@@ -92,46 +92,72 @@ async def fetch_stations_by_criteria(
         len(stations_raw), len(prices_raw),
     )
 
-    # Build price lookup: site_id → {canonical_fuel_type → {price, last_updated}}
+    # Build price lookup: node_id/site_id → {canonical_fuel_type → {price, last_updated}}
+    # The API returns records with a nested "fuel_prices" list; also handle legacy flat format.
     price_map: dict[str, dict[str, Any]] = {}
     skipped_no_sid = skipped_no_ft = skipped_no_price = 0
     for rec in prices_raw:
-        sid = _str_field(rec, "site_id", "siteId", "id")
+        sid = _str_field(rec, "node_id", "site_id", "siteId", "id")
         if not sid:
             skipped_no_sid += 1
             continue
-        raw_ft = _str_field(rec, "fuel_type", "fuelType", "type")
-        ft = _normalise_fuel_type(raw_ft) if raw_ft else ""
-        if not ft:
-            skipped_no_ft += 1
-            continue
-        raw_price = rec.get("price") or rec.get("price_in_pence")
-        if raw_price is None:
-            skipped_no_price += 1
-            continue
-        try:
-            price = float(raw_price)
-            if price > _PENCE_THRESHOLD:
-                price /= 100.0
-        except (TypeError, ValueError):
-            skipped_no_price += 1
-            continue
-        price_map.setdefault(sid, {})[ft] = {
-            "price": round(price, 3),
-            "last_updated": rec.get("last_updated")
-            or rec.get("lastUpdated")
-            or rec.get("updated_at"),
-        }
+        nested = rec.get("fuel_prices")
+        if isinstance(nested, list):
+            # New API format: fuel prices are a nested list within each station record
+            for fp in nested:
+                raw_ft = _str_field(fp, "fuel_type", "fuelType", "type")
+                ft = _normalise_fuel_type(raw_ft) if raw_ft else ""
+                if not ft:
+                    skipped_no_ft += 1
+                    continue
+                raw_price = fp.get("price") or fp.get("price_in_pence")
+                if raw_price is None:
+                    skipped_no_price += 1
+                    continue
+                try:
+                    price = float(raw_price)
+                    if price > _PENCE_THRESHOLD:
+                        price /= 100.0
+                except (TypeError, ValueError):
+                    skipped_no_price += 1
+                    continue
+                price_map.setdefault(sid, {})[ft] = {
+                    "price": round(price, 3),
+                    "last_updated": fp.get("price_last_updated")
+                    or fp.get("last_updated")
+                    or fp.get("lastUpdated"),
+                }
+        else:
+            # Legacy flat format: one record per fuel type
+            raw_ft = _str_field(rec, "fuel_type", "fuelType", "type")
+            ft = _normalise_fuel_type(raw_ft) if raw_ft else ""
+            if not ft:
+                skipped_no_ft += 1
+                continue
+            raw_price = rec.get("price") or rec.get("price_in_pence")
+            if raw_price is None:
+                skipped_no_price += 1
+                continue
+            try:
+                price = float(raw_price)
+                if price > _PENCE_THRESHOLD:
+                    price /= 100.0
+            except (TypeError, ValueError):
+                skipped_no_price += 1
+                continue
+            price_map.setdefault(sid, {})[ft] = {
+                "price": round(price, 3),
+                "last_updated": rec.get("last_updated")
+                or rec.get("lastUpdated")
+                or rec.get("updated_at"),
+            }
 
     _LOGGER.info(
-        "Fuel Prices UK: price map built — %d stations with prices, %d price records skipped "
+        "Fuel Prices UK: price map built — %d stations with prices, %d skipped "
         "(no_sid=%d, no_fuel_type=%d, no_price=%d)",
         len(price_map), skipped_no_sid + skipped_no_ft + skipped_no_price,
         skipped_no_sid, skipped_no_ft, skipped_no_price,
     )
-    if price_map:
-        sample_sid = next(iter(price_map))
-        _LOGGER.info("Fuel Prices UK: price map sample — site_id=%r fuels=%s", sample_sid, list(price_map[sample_sid].keys()))
     if prices_raw and not price_map:
         _LOGGER.warning(
             "Fuel Prices UK: price map is EMPTY despite %d raw price records — "
@@ -151,7 +177,7 @@ async def fetch_stations_by_criteria(
     n_no_sid = n_no_coords = n_outside_radius = n_no_price = 0
 
     for station in stations_raw:
-        sid = _str_field(station, "site_id", "siteId", "id")
+        sid = _str_field(station, "node_id", "site_id", "siteId", "id")
         if not sid or sid in seen:
             n_no_sid += 1
             continue
@@ -161,7 +187,7 @@ async def fetch_stations_by_criteria(
             continue
 
         # Text search filter
-        name = _str_field(station, "name", "station_name", "brand")
+        name = _str_field(station, "name", "trading_name", "station_name", "brand")
         addr = _str_field(station, "address", "street_address")
         postcode = _str_field(station, "postcode")
         if search_query:
@@ -207,7 +233,7 @@ async def fetch_stations_by_criteria(
                 "postcode": postcode,
                 "latitude": lat,
                 "longitude": lon,
-                "brand": _str_field(station, "brand", "retailer"),
+                "brand": _str_field(station, "brand", "trading_name", "retailer"),
                 "distance_km": round(distance_km, 3) if distance_km is not None else None,
                 "prices": prices,
             }
