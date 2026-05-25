@@ -139,6 +139,18 @@ class FuelPricesAPI:
                         )
                         await asyncio.sleep(retry_after)
                         continue
+                    if resp.status >= 500:
+                        # Transient server error (e.g. maintenance window); retry with backoff.
+                        if attempt < 3:
+                            backoff = 5 * (2**attempt)
+                            _LOGGER.warning(
+                                "Server error %d; retrying in %ds (attempt %d/4)",
+                                resp.status, backoff, attempt + 1,
+                            )
+                            await asyncio.sleep(backoff)
+                            continue
+                        text = await resp.text()
+                        raise ApiHttpError(resp.status, text[:200])
                     if resp.status not in (200, 206):
                         text = await resp.text()
                         raise ApiHttpError(resp.status, text[:200])
