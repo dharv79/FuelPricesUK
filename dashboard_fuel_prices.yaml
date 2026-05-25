@@ -1,0 +1,86 @@
+# Fuel Prices UK — Lovelace Dashboard
+#
+# How to use:
+#   1. In Home Assistant go to Settings → Dashboards → Add Dashboard
+#   2. Create a new dashboard, open it, click the ⋮ menu → Edit → Raw configuration editor
+#   3. Paste this entire file and save
+#
+# Requirements: no HACS custom cards needed — uses only built-in HA cards
+#
+# The entity IDs below assume a single integration instance. If you have multiple
+# locations configured, append _2, _3 etc. to the entity IDs for the second/third instance.
+
+title: Fuel Prices UK
+views:
+  - title: Fuel Prices
+    path: fuel-prices
+    icon: mdi:gas-station
+    cards:
+
+      # ── Cheapest E10 Petrol ──────────────────────────────────────────────────
+      - type: markdown
+        title: Cheapest E10 Petrol nearby
+        content: >
+          | # | Station | **£/L** | Distance | Address |
+
+          |---|---------|--------|----------|---------|
+
+          {% for eid in [
+            'sensor.fuel_prices_uk_cheapest_e10_petrol',
+            'sensor.fuel_prices_uk_2nd_cheapest_e10_petrol',
+            'sensor.fuel_prices_uk_3rd_cheapest_e10_petrol'
+          ] %}
+          {%- if not is_state(eid, 'unavailable') and not is_state(eid, 'unknown') %}
+          | {{ state_attr(eid, 'price_rank') }} | {{ state_attr(eid, 'station_name') }} ({{ state_attr(eid, 'brand') }}) | **{{ states(eid) }}** | {{ state_attr(eid, 'distance_miles') }} mi | {{ state_attr(eid, 'address') }}, {{ state_attr(eid, 'postcode') }} |
+          {%- endif %}
+          {% endfor %}
+
+      # ── Cheapest B7 Diesel ───────────────────────────────────────────────────
+      - type: markdown
+        title: Cheapest B7 Diesel nearby
+        content: >
+          | # | Station | **£/L** | Distance | Address |
+
+          |---|---------|--------|----------|---------|
+
+          {% for eid in [
+            'sensor.fuel_prices_uk_cheapest_b7_diesel',
+            'sensor.fuel_prices_uk_2nd_cheapest_b7_diesel',
+            'sensor.fuel_prices_uk_3rd_cheapest_b7_diesel'
+          ] %}
+          {%- if not is_state(eid, 'unavailable') and not is_state(eid, 'unknown') %}
+          | {{ state_attr(eid, 'price_rank') }} | {{ state_attr(eid, 'station_name') }} ({{ state_attr(eid, 'brand') }}) | **{{ states(eid) }}** | {{ state_attr(eid, 'distance_miles') }} mi | {{ state_attr(eid, 'address') }}, {{ state_attr(eid, 'postcode') }} |
+          {%- endif %}
+          {% endfor %}
+
+      # ── All Nearby Stations — prices at a glance ─────────────────────────────
+      # Shows every station sensor in distance order with all fuel prices.
+      # Stations 9+ will be 'unavailable' until you increase the search radius in Options.
+      - type: markdown
+        title: Nearby Stations — all prices
+        content: >
+          | # | Station | E10 | B7 | E5 | SDV | Distance | Address |
+
+          |---|---------|-----|----|----|-----|----------|---------|
+
+          {% for i in range(1, 51) %}
+          {%- set eid = 'sensor.fuel_prices_uk_station_' ~ i %}
+          {%- if not is_state(eid, 'unavailable') and not is_state(eid, 'unknown') %}
+          | {{ i }} | {{ state_attr(eid, 'station_name') }} ({{ state_attr(eid, 'brand') }}) | {{ state_attr(eid, 'e10_price') or '—' }} | {{ state_attr(eid, 'b7_price') or '—' }} | {{ state_attr(eid, 'e5_price') or '—' }} | {{ state_attr(eid, 'sdv_price') or '—' }} | {{ state_attr(eid, 'distance_miles') }} mi | {{ state_attr(eid, 'address') }}, {{ state_attr(eid, 'postcode') }} |
+          {%- endif %}
+          {% endfor %}
+
+      # ── Station locations on map ──────────────────────────────────────────────
+      - type: map
+        title: Nearby Stations
+        entities:
+          - entity: sensor.fuel_prices_uk_station_1
+          - entity: sensor.fuel_prices_uk_station_2
+          - entity: sensor.fuel_prices_uk_station_3
+          - entity: sensor.fuel_prices_uk_station_4
+          - entity: sensor.fuel_prices_uk_station_5
+          - entity: sensor.fuel_prices_uk_station_6
+          - entity: sensor.fuel_prices_uk_station_7
+          - entity: sensor.fuel_prices_uk_station_8
+          - entity: sensor.fuel_prices_uk_station_9
+          - entity: sensor.fuel_prices_uk_station_10
