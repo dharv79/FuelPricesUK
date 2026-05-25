@@ -31,7 +31,7 @@ views:
           | # | Station | **£/L** | Distance | Updated |
           | --- | --- | --- | --- | --- |
           {% for s in ns.rows | sort(attribute='e10') -%}
-          | {{ loop.index }} | {{ s.name }} ({{ s.brand }}) | **{{ s.e10 }}** | {{ s.dist }} mi | {{ s.updated[:16].replace('T',' ') if s.updated else '—' }} |
+          | {{ loop.index }} | {{ s.name }} ({{ s.brand }}) | **{{ s.e10 }}** | {{ s.dist }} mi | {{ (s.updated[:10].split('-') | reverse | join('/')) ~ ' ' ~ s.updated[11:19] if s.updated else '—' }} |
           {% endfor %}
 
       # ── Cheapest B7 Diesel ───────────────────────────────────────────────────
@@ -48,7 +48,7 @@ views:
           | # | Station | **£/L** | Distance | Updated |
           | --- | --- | --- | --- | --- |
           {% for s in ns.rows | sort(attribute='b7') -%}
-          | {{ loop.index }} | {{ s.name }} ({{ s.brand }}) | **{{ s.b7 }}** | {{ s.dist }} mi | {{ s.updated[:16].replace('T',' ') if s.updated else '—' }} |
+          | {{ loop.index }} | {{ s.name }} ({{ s.brand }}) | **{{ s.b7 }}** | {{ s.dist }} mi | {{ (s.updated[:10].split('-') | reverse | join('/')) ~ ' ' ~ s.updated[11:19] if s.updated else '—' }} |
           {% endfor %}
 
       # ── Cheapest E5 Super Unleaded ───────────────────────────────────────────
@@ -65,7 +65,7 @@ views:
           | # | Station | **£/L** | Distance | Updated |
           | --- | --- | --- | --- | --- |
           {% for s in ns.rows | sort(attribute='e5') -%}
-          | {{ loop.index }} | {{ s.name }} ({{ s.brand }}) | **{{ s.e5 }}** | {{ s.dist }} mi | {{ s.updated[:16].replace('T',' ') if s.updated else '—' }} |
+          | {{ loop.index }} | {{ s.name }} ({{ s.brand }}) | **{{ s.e5 }}** | {{ s.dist }} mi | {{ (s.updated[:10].split('-') | reverse | join('/')) ~ ' ' ~ s.updated[11:19] if s.updated else '—' }} |
           {% endfor %}
 
       # ── Cheapest SDV Super Diesel ────────────────────────────────────────────
@@ -82,7 +82,7 @@ views:
           | # | Station | **£/L** | Distance | Updated |
           | --- | --- | --- | --- | --- |
           {% for s in ns.rows | sort(attribute='sdv') -%}
-          | {{ loop.index }} | {{ s.name }} ({{ s.brand }}) | **{{ s.sdv }}** | {{ s.dist }} mi | {{ s.updated[:16].replace('T',' ') if s.updated else '—' }} |
+          | {{ loop.index }} | {{ s.name }} ({{ s.brand }}) | **{{ s.sdv }}** | {{ s.dist }} mi | {{ (s.updated[:10].split('-') | reverse | join('/')) ~ ' ' ~ s.updated[11:19] if s.updated else '—' }} |
           {% endfor %}
 
       # ── All Nearby Stations — prices at a glance ─────────────────────────────
@@ -97,7 +97,7 @@ views:
           {%- set eid = 'sensor.fuel_prices_uk_station_' ~ i -%}
           {%- if state_attr(eid, 'station_name') is not none -%}
           {%- set upd = state_attr(eid, 'last_updated') -%}
-          | {{ i }} | {{ state_attr(eid, 'station_name') }} ({{ state_attr(eid, 'brand') }}) | {{ state_attr(eid, 'e10_price') or '—' }} | {{ state_attr(eid, 'b7_price') or '—' }} | {{ state_attr(eid, 'e5_price') or '—' }} | {{ state_attr(eid, 'sdv_price') or '—' }} | {{ state_attr(eid, 'distance_miles') }} mi | {{ upd[:16].replace('T',' ') if upd else '—' }} |
+          | {{ i }} | {{ state_attr(eid, 'station_name') }} ({{ state_attr(eid, 'brand') }}) | {{ state_attr(eid, 'e10_price') or '—' }} | {{ state_attr(eid, 'b7_price') or '—' }} | {{ state_attr(eid, 'e5_price') or '—' }} | {{ state_attr(eid, 'sdv_price') or '—' }} | {{ state_attr(eid, 'distance_miles') }} mi | {{ (upd[:10].split('-') | reverse | join('/')) ~ ' ' ~ upd[11:19] if upd else '—' }} |
           {% endif -%}
           {% endfor %}
 
