@@ -163,28 +163,24 @@ class FuelPricesAPI:
     # Public API methods
     # ------------------------------------------------------------------
 
-    async def get_stations(
-        self, page: int = 1, page_size: int = 500
-    ) -> dict[str, Any]:
-        """Fetch one page of station metadata."""
+    async def get_stations(self, batch_number: int = 1) -> dict[str, Any]:
+        """Fetch one batch of station metadata."""
         return await self._request(
-            "GET", API_STATIONS_PATH, params={"page": page, "pageSize": page_size}
+            "GET", API_STATIONS_PATH, params={"batch-number": batch_number}
         )
 
-    async def get_fuel_prices(
-        self, page: int = 1, page_size: int = 500
-    ) -> dict[str, Any]:
-        """Fetch one page of current fuel prices."""
+    async def get_fuel_prices(self, batch_number: int = 1) -> dict[str, Any]:
+        """Fetch one batch of current fuel prices."""
         return await self._request(
-            "GET", API_PRICES_PATH, params={"page": page, "pageSize": page_size}
+            "GET", API_PRICES_PATH, params={"batch-number": batch_number}
         )
 
     async def get_all_stations(self) -> list[dict[str, Any]]:
-        """Fetch every station record, paging until exhausted."""
+        """Fetch every station record across all batches."""
         return await _fetch_all_pages(self.get_stations)
 
     async def get_all_fuel_prices(self) -> list[dict[str, Any]]:
-        """Fetch every price record, paging until exhausted."""
+        """Fetch every price record across all batches."""
         return await _fetch_all_pages(self.get_fuel_prices)
 
     async def close(self) -> None:
@@ -197,21 +193,17 @@ class FuelPricesAPI:
 # ------------------------------------------------------------------
 
 
-async def _fetch_all_pages(
-    page_fn: Any, page_size: int = 500
-) -> list[dict[str, Any]]:
-    """Call page_fn(page=N, page_size=page_size) repeatedly until no more records."""
+async def _fetch_all_pages(page_fn: Any) -> list[dict[str, Any]]:
+    """Call page_fn(batch_number=N) repeatedly until an empty batch is returned."""
     records: list[dict[str, Any]] = []
-    page = 1
+    batch_number = 1
     while True:
-        data = await page_fn(page=page, page_size=page_size)
+        data = await page_fn(batch_number=batch_number)
         batch = _extract_records(data)
         if not batch:
             break
         records.extend(batch)
-        if len(batch) < page_size:
-            break
-        page += 1
+        batch_number += 1
     return records
 
 
