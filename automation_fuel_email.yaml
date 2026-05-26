@@ -1,0 +1,160 @@
+# Fuel Prices UK — Daily Email Automation
+#
+# Sends a fuel price summary email at 8am every day via Google Mail.
+#
+# How to install:
+#   Option A — Automation editor:
+#     1. Go to Settings → Automations → + Create Automation → Edit in YAML
+#     2. Paste the contents of the 'automation:' block below
+#
+#   Option B — automations.yaml:
+#     Copy the block below (starting at '- alias:') into your automations.yaml
+#
+# Before using:
+#   Verify your Google Mail entity ID:
+#     Go to Developer Tools → Services → search "google_mail"
+#     The entity_id will be shown — update the value below to match.
+#   The entity shown in your HA is likely: notify.harv1979_gmail_com
+#   (Settings → Devices & Services → Google Mail → 1 entity → note the entity ID)
+
+automation:
+  - alias: "Fuel Prices — Daily Email"
+    description: "Send cheapest fuel prices to the family at 8am"
+    trigger:
+      - platform: time
+        at: "08:00:00"
+    action:
+      - service: google_mail.send_message
+        data:
+          entity_id: notify.harv1979_gmail_com   # ← verify this in Developer Tools
+          to:
+            - lucy@theharvs.co.uk
+            - dave@theharvs.co.uk
+          subject: >
+            Fuel Prices — {{ now().strftime('%d/%m/%Y') }}
+          message: >
+            Fuel price summary for {{ now().strftime('%d/%m/%Y') }}.
+            See HTML version for full tables.
+          html: >
+            {%- set ns = namespace(e10=[], b7=[], e5=[], sdv=[], all=[]) -%}
+            {%- for i in range(1, 51) -%}
+              {%- set eid = 'sensor.fuel_prices_uk_station_' ~ i -%}
+              {%- if state_attr(eid, 'station_name') is not none -%}
+                {%- set name = state_attr(eid, 'station_name') ~ ' (' ~ state_attr(eid, 'brand') ~ ')' -%}
+                {%- set dist = state_attr(eid, 'distance_miles') -%}
+                {%- set upd  = state_attr(eid, 'last_updated') -%}
+                {%- set updf = (upd[:10].split('-') | reverse | join('/')) ~ ' ' ~ upd[11:19] if upd else '—' -%}
+                {%- set row  = {'name': name, 'dist': dist, 'upd': updf,
+                                'e10': state_attr(eid, 'e10_price'),
+                                'e5':  state_attr(eid, 'e5_price'),
+                                'b7':  state_attr(eid, 'b7_price'),
+                                'sdv': state_attr(eid, 'sdv_price')} -%}
+                {%- set ns.all = ns.all + [row] -%}
+                {%- if row.e10 is not none -%}{%- set ns.e10 = ns.e10 + [row] -%}{%- endif -%}
+                {%- if row.b7  is not none -%}{%- set ns.b7  = ns.b7  + [row] -%}{%- endif -%}
+                {%- if row.e5  is not none -%}{%- set ns.e5  = ns.e5  + [row] -%}{%- endif -%}
+                {%- if row.sdv is not none -%}{%- set ns.sdv = ns.sdv + [row] -%}{%- endif -%}
+              {%- endif -%}
+            {%- endfor -%}
+            <!DOCTYPE html>
+            <html>
+            <head>
+            <meta charset="utf-8">
+            <style>
+              body { font-family: Arial, sans-serif; font-size: 14px; color: #222; }
+              h2   { color: #1a73e8; margin-top: 28px; margin-bottom: 6px; }
+              table { border-collapse: collapse; width: 100%; margin-bottom: 24px; }
+              th { background: #1a73e8; color: #fff; padding: 8px 12px; text-align: left; }
+              td { padding: 7px 12px; border-bottom: 1px solid #e0e0e0; }
+              tr:nth-child(even) td { background: #f5f8ff; }
+              .price { font-weight: bold; color: #1a73e8; }
+              .cheap { background: #e6f4ea !important; }
+              .footer { font-size: 12px; color: #888; margin-top: 16px; }
+            </style>
+            </head>
+            <body>
+            <p>Fuel price summary for <strong>{{ now().strftime('%d/%m/%Y') }}</strong>. Prices in £/L.</p>
+
+            <h2>⛽ Cheapest E10 Petrol</h2>
+            <table>
+              <tr><th>#</th><th>Station</th><th>£/L</th><th>Distance</th><th>Updated</th></tr>
+              {%- for s in ns.e10 | sort(attribute='e10') %}
+              <tr{% if loop.first %} class="cheap"{% endif %}>
+                <td>{{ loop.index }}</td>
+                <td>{{ s.name }}</td>
+                <td class="price">{{ s.e10 }}</td>
+                <td>{{ s.dist }} mi</td>
+                <td>{{ s.upd }}</td>
+              </tr>
+              {%- endfor %}
+            </table>
+
+            <h2>🛢 Cheapest B7 Diesel</h2>
+            <table>
+              <tr><th>#</th><th>Station</th><th>£/L</th><th>Distance</th><th>Updated</th></tr>
+              {%- for s in ns.b7 | sort(attribute='b7') %}
+              <tr{% if loop.first %} class="cheap"{% endif %}>
+                <td>{{ loop.index }}</td>
+                <td>{{ s.name }}</td>
+                <td class="price">{{ s.b7 }}</td>
+                <td>{{ s.dist }} mi</td>
+                <td>{{ s.upd }}</td>
+              </tr>
+              {%- endfor %}
+            </table>
+
+            {%- if ns.e5 | length > 0 %}
+            <h2>⛽ Cheapest E5 Super Unleaded</h2>
+            <table>
+              <tr><th>#</th><th>Station</th><th>£/L</th><th>Distance</th><th>Updated</th></tr>
+              {%- for s in ns.e5 | sort(attribute='e5') %}
+              <tr{% if loop.first %} class="cheap"{% endif %}>
+                <td>{{ loop.index }}</td>
+                <td>{{ s.name }}</td>
+                <td class="price">{{ s.e5 }}</td>
+                <td>{{ s.dist }} mi</td>
+                <td>{{ s.upd }}</td>
+              </tr>
+              {%- endfor %}
+            </table>
+            {%- endif %}
+
+            {%- if ns.sdv | length > 0 %}
+            <h2>🛢 Cheapest SDV Super Diesel</h2>
+            <table>
+              <tr><th>#</th><th>Station</th><th>£/L</th><th>Distance</th><th>Updated</th></tr>
+              {%- for s in ns.sdv | sort(attribute='sdv') %}
+              <tr{% if loop.first %} class="cheap"{% endif %}>
+                <td>{{ loop.index }}</td>
+                <td>{{ s.name }}</td>
+                <td class="price">{{ s.sdv }}</td>
+                <td>{{ s.dist }} mi</td>
+                <td>{{ s.upd }}</td>
+              </tr>
+              {%- endfor %}
+            </table>
+            {%- endif %}
+
+            <h2>📍 All Nearby Stations — by distance</h2>
+            <table>
+              <tr><th>#</th><th>Station</th><th>E10</th><th>B7</th><th>E5</th><th>SDV</th><th>Distance</th><th>Updated</th></tr>
+              {%- for s in ns.all %}
+              <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ s.name }}</td>
+                <td>{{ s.e10 or '—' }}</td>
+                <td>{{ s.b7  or '—' }}</td>
+                <td>{{ s.e5  or '—' }}</td>
+                <td>{{ s.sdv or '—' }}</td>
+                <td>{{ s.dist }} mi</td>
+                <td>{{ s.upd }}</td>
+              </tr>
+              {%- endfor %}
+            </table>
+
+            <p class="footer">
+              Sent by Fuel Prices UK · Home Assistant ·
+              Data from UK Government Fuel Finder open data scheme
+            </p>
+            </body>
+            </html>
