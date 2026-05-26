@@ -20,9 +20,6 @@ action:
       title: >
         Fuel Prices — {{ now().strftime('%d/%m/%Y') }}
       message: >
-        Fuel price summary for {{ now().strftime('%d/%m/%Y') }}.
-        See HTML version for full tables.
-      html: >
         {%- set ns = namespace(e10=[], b7=[], e5=[], sdv=[], all=[]) -%}
         {%- for i in range(1, 51) -%}
           {%- set eid = 'sensor.fuel_prices_uk_station_' ~ i -%}
