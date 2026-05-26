@@ -12,9 +12,7 @@ trigger:
   - platform: time
     at: "08:00:00"
 action:
-  - action: notify.send_message
-    target:
-      entity_id: notify.harv1979_gmail_com
+  - action: notify.harv1979_gmail_com
     data:
       target:
         - lucy@theharvs.co.uk
