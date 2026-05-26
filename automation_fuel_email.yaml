@@ -6,23 +6,20 @@
 #   3. Replace all content with everything below the comment block and save
 #
 # Before using:
-#   Verify your Google Mail entity ID:
-#   Settings → Devices & Services → Google Mail → 1 entity → note the entity ID
-#   Update the entity_id value below to match.
-
 alias: "Fuel Prices — Daily Email"
 description: "Send cheapest fuel prices to the family at 8am"
 trigger:
   - platform: time
     at: "08:00:00"
 action:
-  - service: google_mail.send_message
+  - action: notify.send_message
+    target:
+      entity_id: notify.harv1979_gmail_com
     data:
-      entity_id: notify.harv1979_gmail_com   # ← verify in Developer Tools
-      to:
+      target:
         - lucy@theharvs.co.uk
         - dave@theharvs.co.uk
-      subject: >
+      title: >
         Fuel Prices — {{ now().strftime('%d/%m/%Y') }}
       message: >
         Fuel price summary for {{ now().strftime('%d/%m/%Y') }}.
